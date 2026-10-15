@@ -482,6 +482,19 @@ details.ref{margin-top:12px;background:var(--bg2);border:1px solid var(--line);b
 .iimport{margin-top:4px}.iimport summary{cursor:pointer;color:var(--cyan);font-weight:600;padding:6px 2px}
 .iimport textarea{width:100%;background:var(--bg2);color:var(--tx);border:1px solid var(--line2);border-radius:10px;padding:8px;font:12px var(--f-mono);margin:6px 0}
 
+.qlog .mbody{max-height:58vh;overflow-y:auto;padding:6px 10px}
+.qf{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;border-bottom:1px solid #222c38}
+.qf button{flex:none;padding:6px 11px;border-radius:999px;border:1px solid #2c3a4a;background:#0e1620;color:#b9c6d4;font:600 12.5px var(--f-body,inherit)}
+.qf button.on{background:var(--red);border-color:var(--red);color:#fff}
+.qrow{padding:8px 0;border-bottom:1px solid #1c2631;text-align:left}
+.qh{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.35}
+.qtm{flex:none;font:600 11px 'JetBrains Mono',monospace;color:#8fa3b8;min-width:58px;padding-top:2px}
+.qi{flex:none}.qx{flex:1;min-width:0;overflow-wrap:anywhere}
+.qmore{display:block;font-style:normal;font-size:11.5px;color:#8fb4ff;margin-top:2px}
+.qs{margin:2px 0 0 66px;font-size:11px;color:#6b7e92}
+.qd{margin:6px 0 0 66px;padding-left:16px;font-size:12.5px;color:#c4d0dc}.qd li{margin:2px 0;overflow-wrap:anywhere}
+.q-fehler .qx{color:#ff9d93}
+
 </style></head><body>
 <div id="app">
  <header id="top">
@@ -1903,7 +1916,7 @@ const BILLA=[
  {id:'doener',n:'Döner',ic:'🥙',p:20,nv:7,fl:40,d:'Mit alles und scharf'},
  {id:'pizza',n:'Pizza',ic:'🍕',p:18,nv:6,fl:35,d:'Salami, noch warm'},
  {id:'hotdog',n:'Hotdog',ic:'🌭',p:10,nv:3,fl:20,d:'Mit Röstzwiebeln'},
- {id:'wurst',n:'Wurstsemmel',ic:'🥪',p:8,nv:2,fl:15,d:'Leberkäs wäre auch gegangen'},
+ {id:'wurst',n:'Toast',ic:'🥪',p:8,nv:2,fl:15,d:'Leberkäs wäre auch gegangen'},
  {id:'cola',n:'Cola',ic:'🥤',p:4,nv:1.5,fl:8,d:'0,5 l, eiskalt'},
  {id:'fanta',n:'Fanta',ic:'🧃',p:4,nv:1.5,fl:8,d:'0,5 l, eiskalt'},
  {id:'wasser',n:'Wasser',ic:'💧',p:3,nv:1,fl:5,d:'Stilles Mineralwasser'}
@@ -1953,6 +1966,13 @@ let SOUND=true;
 function absMin(t){ return G.start.min + (t===undefined?G.t:t); }
 function dayIdx(t){ return (G.start.day + Math.floor(absMin(t)/1440))%7; }
 function hourOf(t){ return Math.floor((absMin(t)%1440)/60); }
+/* ---------- Questlog ---------- */
+function plain(x){ return String(x||'').replace(/<br>/g,' ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&'); }
+function logEv(c,x,d){
+ if(!G) return; if(!G.qlog) G.qlog=[];
+ G.qlog.push({t:Math.round(G.t*10)/10,c,x:plain(x),d:d&&d.length?d.map(plain):undefined,m:G.maut,n:Math.round(G.nerven)});
+ if(G.qlog.length>1500) G.qlog.splice(0,G.qlog.length-1500);
+}
 function hhmm(t){ const m=Math.floor(absMin(t))%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
 function isAfterHours(){ const h=hourOf(); return h>=22||h<6; }
 function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
@@ -1963,7 +1983,7 @@ function newGame(diff){
  const crew={}; STAFF.forEach(s=>{ crew[s.n]={st:'ok',en:100,runs:0,fsb:0,until:0,berniRuns:0}; });
  G={v:1,diff:diff||'mittel',t:0,start:{day:rnd(0,6),min:18*60},nerven:40,andi:100,andiOut:0,
   crew, maut:0, buffs:[], bid:1, anger:0, stash:[], stashT:25, stashLock:0, bag:[], veh:VEH_DEF.map(d=>({id:d.id,type:d.type,crew:[],st:'idle',x:d.type==='nef'?NEF_HOME[d.home].x:STATION.x,y:d.type==='nef'?NEF_HOME[d.home].y:STATION.y,trip:null,inc:null,cd:0,pen:true,dolm:false,unit:0,home:d.home||null,runs:0})),
-  inc:[],nid:1,nextSpawn:2,started:false,stats:{done:0,failed:0,belassen:0,died:0,arrests:0,expired:0,od:0,maut:0},hist:[],over:null,lastQ:[],spawned:0,winShown:false};
+  inc:[],nid:1,nextSpawn:2,started:false,stats:{done:0,failed:0,belassen:0,died:0,arrests:0,expired:0,od:0,maut:0},hist:[],qlog:[],over:null,lastQ:[],spawned:0,winShown:false};
  return G;
 }
 
@@ -2065,6 +2085,7 @@ function spawnIncident(forceId){
   cur:null,tx:null,age,g,sceneT:null,seen:false,okSteps:0,comp:0,ev:0};
  G.inc.push(inc); G.spawned++;
  G.lastQ.push(q.id); if(G.lastQ.length>3) G.lastQ.shift();
+ logEv('einsatz',`Alarm #${inc.id}: ${inc.code} – ${inc.label}, ${inc.addr}, ${inc.plz} Wien (${inc.age} J., ${inc.g==='f'?'w':'m'})`);
  toast(`<b>${inc.code}</b> · ${inc.addr}, ${inc.plz} Wien`,'alarm',inc.id);
  playAlarm();
  return inc;
@@ -2081,6 +2102,7 @@ function dispatch(vid,iid){
  if(!inc.vehs.includes(v.id)) inc.vehs.push(v.id);
  if(inc.st==='alarm') inc.st='enroute';
  inc.log.push({t:G.t,k:'info',x:`${v.id} (${vCrewText(v)}) rückt aus. ETA ${hhmm(G.t+v.trip.dur)} Uhr.`});
+ logEv('einsatz',`${v.id} (${vCrewText(v)}) rückt aus zu #${inc.id} ${inc.code}, ${inc.addr}. ETA ${hhmm(G.t+v.trip.dur)} Uhr.`);
  return true;
 }
 function sceneVehs(inc){ return inc.vehs.map(vehById).filter(v=>v&&v.st==='scene'&&v.inc===inc.id); }
@@ -2095,6 +2117,7 @@ function penVeh(inc){ return sceneVehs(inc).find(v=>v.pen); }
 function onArriveScene(v,inc){
  v.st='scene'; v.x=inc.x; v.y=inc.y; v.trip=null;
  inc.log.push({t:G.t,k:'info',x:`${v.id} trifft ein (${vCrewText(v)}).`});
+ logEv('einsatz',`${v.id} trifft bei #${inc.id} ${inc.code} ein.`);
  toast(`${v.id} ist vor Ort: ${inc.addr}`,'info',inc.id);
  if(v.type==='asb'){
   inc.log.push({t:G.t,k:'crit',x:'Der ASB-RTW trifft ein. Der Patient verstirbt kurz nach dem Eintreffen.'});
@@ -2340,9 +2363,9 @@ const PAUSE_TXT=['„Wir haben seit Stunden nichts gegessen. Dürfen wir kurz zu
 function rollOff(v){
  if(!G||v.offT>0||Math.random()>OFF_CHANCE) return;
  const r=Math.random();
- if(r<.4){ v.offWhy='Putzen'; v.offT=rnd(6,12); toast(`🧽 <b>${v.id}</b> muss geputzt werden: ${v.offT} Min nicht einsatzbereit.`,'warn'); }
- else if(r<.75){ v.offWhy='Medikamente nachfassen'; v.offT=rnd(5,9); toast(`💊 <b>${v.id}</b> muss Medikamente nachfassen: ${v.offT} Min nicht einsatzbereit.`,'warn'); }
- else { v.offWhy='Wartet'; v.offT=0.01; if(typeof askPause==='function') askPause(v.id); else { v.offT=0; v.offWhy=null; } }
+ if(r<.4){ v.offWhy='Putzen'; v.offT=rnd(6,12); logEv('fahrzeug',`${v.id} muss geputzt werden (${v.offT} Min nicht einsatzbereit).`); toast(`🧽 <b>${v.id}</b> muss geputzt werden: ${v.offT} Min nicht einsatzbereit.`,'warn'); }
+ else if(r<.75){ v.offWhy='Medikamente nachfassen'; v.offT=rnd(5,9); logEv('fahrzeug',`${v.id} muss Medikamente nachfassen (${v.offT} Min nicht einsatzbereit).`); toast(`💊 <b>${v.id}</b> muss Medikamente nachfassen: ${v.offT} Min nicht einsatzbereit.`,'warn'); }
+ else { v.offWhy='Wartet'; v.offT=0.01; logEv('fahrzeug',`${v.id} bittet um Essenspause.`); if(typeof askPause==='function') askPause(v.id); else { v.offT=0; v.offWhy=null; } }
 }
 function finishVehicles(inc,cd,transportVeh){
  const done=[];
@@ -2361,6 +2384,7 @@ function bumpCrew(names,fail,lvl){
 function checkBerni(names){
  if(names.includes('Berni')){
   const c=G.crew.Berni; c.st='neb'; c.until=G.t+90;
+  logEv('crew','Berni hat sich nach dem Einsatz krankgemeldet (NEB, 90 Min).');
   toast('Berni hat sich nach dem Einsatz sofort krankgemeldet: <b>NEB</b>. Das Fahrzeug braucht Ersatz!','warn');
  }
 }
@@ -2431,6 +2455,10 @@ function settle(inc,o){
  else if(fail){ rep.title='Falscher Abgabeort / Fehler – FSB-Eintrag erhalten!'; rep.sub='Der Einsatz gilt als gescheitert.'; }
  else { rep.title='Einsatz erfolgreich'; rep.sub=''; }
  rep.hio=hioNeeded; rep.text=o.text||'';
+ { const det=[]; rep.lines.forEach(l=>det.push((l.ok?'✔ ':'✘ ')+l.txt+(l.why?' – '+l.why:'')));
+   inc.log.forEach(e=>det.push(hhmm(e.t)+' '+e.x));
+   const abs=[]; if(rep.fail) abs.push('FSB-Eintrag'); if(maut) abs.push('+'+maut+' Maut');
+   logEv(rep.fail?'fehler':'einsatz',`ABSCHLUSS #${inc.id} ${inc.code} (${inc.addr}): ${rep.title}. Nerven ${delta>0?'+':''}${delta}${abs.length?' · '+abs.join(' · '):''}. Fahrzeuge: ${inc.vehs.join(', ')}. Besatzung: ${names.join(', ')||'–'}.`,det); }
 
  /* Fahrzeuge + Energie */
  const cd=cooldownFor(inc,rep.fail);
@@ -2468,7 +2496,7 @@ function onArriveHosp(v,inc){
 /* ---------- HIO / Verhaftung ---------- */
 function applyArrest(names){
  names.forEach(n=>{ const c=G.crew[n]; c.st='arrest'; c.until=G.t+25; c.fsb++; c.en=Math.max(0,c.en-25); });
- G.stats.arrests++;
+ G.stats.arrests++; logEv('fehler',`${names.join(' und ')} wurden verhaftet (+1 FSB, ca. 25 Min nicht verfügbar).`);
 }
 
 /* ---------- Andi ---------- */
@@ -2478,10 +2506,10 @@ const GIVE_NO=['„Nach der Aktion? Heute gibt’s kein Penthrop für dich!“',
 function andiGive(vid){
  const v=vehById(vid); if(!v||v.st!=='idle'||v.pen) return;
  if(G.andiOut>G.t){ toast('Andi ist gerade nicht erreichbar. Er braucht noch eine Pause.','warn'); return; }
- if(Math.random()>andiGiveChance()){ toast('Andi: '+pick(GIVE_NO),'bad'); addAnger(2); sfx('bad'); return; }
+ if(Math.random()>andiGiveChance()){ logEv('andi',`Andi verweigert Penthrop an ${v.id} (Wut ${Math.round(G.anger)} %).`); toast('Andi: '+pick(GIVE_NO),'bad'); addAnger(2); sfx('bad'); return; }
  const after=isAfterHours();
  const cost=after?40:10;
- G.andi-=cost; v.pen=true;
+ G.andi-=cost; v.pen=true; logEv('andi',`Andi gibt Penthrop an ${v.id}${after?' (nach Büroschluss)':''}. Andi −${cost} Nerven (jetzt ${Math.max(0,Math.round(G.andi))}).`);
  if(after) toast(`Andi: „Es ist ${hhmm()} – BÜROSCHLUSS war um 22:00!“ <b>−40 Nerven (Andi)</b>`,'bad');
  else toast(`Andi gibt Penthrop aus an ${v.id}. <b>−10 Nerven (Andi)</b>`,'warn');
  if(G.andi<=0){
@@ -2505,6 +2533,7 @@ function buyFood(id,who){
  if(G.maut<it.p){ toast(`Zu wenig Maut für ${it.n}. Es fehlen ${it.p-G.maut} Maut.`,'warn'); return false; }
  G.maut-=it.p; c.full=Math.min(100,(c.full||0)+it.fl);
  toast(`${it.ic} ${who}: ${it.n}. <b>+${it.nv} Nerven</b>`,'info');
+ logEv('essen',`${who} kauft ${it.n} für ${it.p} Maut (+${it.nv} Nerven, Bauch ${Math.round(c.full)} %). Maut-Rest ${G.maut}.`);
  addNerven(it.nv,it.n); sfx('ok');
  return true;
 }
@@ -2518,6 +2547,7 @@ function buyDrug(id,who,free){
  G.maut-=dr.p;
  const od=Math.random()<dr.od;
  G.buffs.push({id:G.bid++,drug:dr.id,who,el:0,dur:dr.dur,total:dr.nv,odAt:od?dr.dur*(0.25+Math.random()*0.45):null});
+ logEv('drogen',`${who} nimmt ${dr.n}${free?' (aus Beute, Wert '+dr.p+' Maut gutgeschrieben)':' für '+dr.p+' Maut'}: +${dr.nv} Nerven über ${dr.dur} Min. Überdosis-Risiko ${Math.round(dr.od*100)} %. Maut-Rest ${G.maut}.`);
  toast(`${dr.ic} ${who} nimmt ${dr.n}. Nerven steigen über ${dr.dur} Minuten.`,'info');
  sfx('med');
  return true;
@@ -2526,7 +2556,7 @@ function overdose(b){
  const dr=DRUGS.find(x=>x.id===b.drug), c=G.crew[b.who];
  c.st='dead';
  G.buffs=G.buffs.filter(x=>x.who!==b.who);
- G.stats.od++;
+ G.stats.od++; logEv('fehler',`${b.who} ist an einer Überdosis ${dr.n} gestorben. −8 Nerven.`);
  const v=assignedTo(b.who);
  toast(`💀 <b>${b.who}</b> ist an einer Überdosis ${dr.n} gestorben.${v?` ${v.id} ist nicht mehr einsatzbereit.`:''} <b>−8 Nerven</b>`,'bad');
  addNerven(-8,'Überdosis'); sfx('bad');
@@ -2539,7 +2569,7 @@ function tickBuffs(dt){
   addNervenQuiet(b.total*step/b.dur);
   b.el+=dt;
   if(b.odAt!==null&&b.el>=b.odAt){ overdose(b); return; }
-  if(b.el>=b.dur){ G.buffs=G.buffs.filter(x=>x!==b); toast(`Die Wirkung von ${DRUGS.find(x=>x.id===b.drug).n} lässt nach (${b.who}).`,'info'); }
+  if(b.el>=b.dur){ G.buffs=G.buffs.filter(x=>x!==b); logEv('drogen',`Wirkung von ${DRUGS.find(x=>x.id===b.drug).n} bei ${b.who} lässt nach.`); toast(`Die Wirkung von ${DRUGS.find(x=>x.id===b.drug).n} lässt nach (${b.who}).`,'info'); }
  });
 }
 function buffPending(){ return G.buffs.reduce((a,b)=>a+b.total*(1-Math.min(1,b.el/b.dur)),0); }
@@ -2550,12 +2580,13 @@ function stashStealOK(){ if(G.stashLock>G.t) return 'Andi sitzt gerade am Schrei
 function stashSuccess(idx){
  const id=G.stash[idx]; if(!id) return null;
  G.stash.splice(idx,1); G.bag.push(id); G.stashLock=G.t+10; G.stats.stolen=(G.stats.stolen||0)+1;
+ logEv('versteck',`Beute aus Andis Versteck gestohlen: ${id}.`);
  sfx('ok'); return id;
 }
 function stashCaught(){
  G.stash=[]; G.stashLock=G.t+25;
  G.andi=Math.max(2,G.andi-15); addAnger(55);
- G.stats.caught=(G.stats.caught||0)+1;
+ G.stats.caught=(G.stats.caught||0)+1; logEv('versteck','Beim Stehlen erwischt: Polizei verwarnt beide. Andi −15 Nerven, Andis Wut +55, −6 Nerven.');
  addNerven(-6,'Beim Stehlen erwischt'); sfx('bad');
 }
 
@@ -2580,7 +2611,7 @@ function andiAsk(style){
  let text, maut=0;
  if(G.andiOut>G.t) return {text:'Andi ist nicht da. Er hat einen Nervenzusammenbruch.',maut:0};
  if(isAfterHours()){
-  text=pick(ASK_REPLY.late); G.andi=Math.max(2,G.andi-8); addAnger(8);
+  text=pick(ASK_REPLY.late); G.andi=Math.max(2,G.andi-8); addAnger(8); logEv('andi','Maut-Bitte nach 22 Uhr: „Ist das dein Ernst?“ Keine Maut.');
   return {text,maut:0,late:true};
  }
  if((G.andiAskT||0)>G.t){ addAnger(3); return {text:pick(ASK_REPLY.cd),maut:0}; }
@@ -2600,6 +2631,7 @@ function andiAsk(style){
  maut=base; text=pick(pool);
  G.maut+=maut; G.stats.maut+=maut;
  G.andi=Math.max(2,G.andi-4); G.andiAskT=G.t+6;
+ logEv('andi',`Maut-Bitte (${style}): ${maut>0?'Andi gibt '+maut+' Maut':'nichts erhalten'}. Maut-Stand ${G.maut}. Andi-Laune ${Math.round(G.andi)}, Wut ${Math.round(G.anger)} %.`);
  if(maut>0) sfx('ok');
  return {text,maut};
 }
@@ -2630,17 +2662,17 @@ function tickGame(dtReal){
   const c=G.crew[s.n]; const v=assignedTo(s.n);
   if(c.st==='dead') return;
   if(c.full>0) c.full=Math.max(0,c.full-0.5*dt);
-  if(c.st==='neb'&&G.t>=c.until){ c.st='ok'; toast(`${s.n} ist wieder gesund.`,'info'); }
-  if(c.st==='arrest'&&G.t>=c.until){ c.st='ok'; toast(`${s.n} ist wieder auf freiem Fuß.`,'info'); }
+  if(c.st==='neb'&&G.t>=c.until){ c.st='ok'; logEv('crew',`${s.n} ist wieder gesund.`); toast(`${s.n} ist wieder gesund.`,'info'); }
+  if(c.st==='arrest'&&G.t>=c.until){ c.st='ok'; logEv('crew',`${s.n} ist wieder auf freiem Fuß.`); toast(`${s.n} ist wieder auf freiem Fuß.`,'info'); }
   let r=0;
   if(!v) r=1.5; else if(v.st==='idle') r=0.6; else if(v.st==='cool'||v.st==='return') r=0.25;
   if(c.st==='neb') r=0.2;
   c.en=Math.min(100,c.en+r*dt);
  });
  tickBuffs(dt);
- G.veh.forEach(v=>{ if(v.offT>0){ v.offT-=dt; if(v.offT<=0){ const w=v.offWhy; v.offT=0; v.offWhy=null; if(w&&w!=='Wartet') toast(`${v.id} ist wieder einsatzbereit (${w} erledigt).`,'info'); } } });
+ G.veh.forEach(v=>{ if(v.offT>0){ v.offT-=dt; if(v.offT<=0){ const w=v.offWhy; v.offT=0; v.offWhy=null; if(w&&w!=='Wartet') logEv('fahrzeug',`${v.id} ist wieder einsatzbereit (${w} erledigt).`); if(w&&w!=='Wartet') toast(`${v.id} ist wieder einsatzbereit (${w} erledigt).`,'info'); } } });
  if(G.anger>0) G.anger=Math.max(0,G.anger-0.06*dt);
- if(G.t>=G.stashT){ if(G.stash.length<1) G.stash.push(stashPick()); G.stashT=G.t+rnd(30,55); }
+ if(G.t>=G.stashT){ if(G.stash.length<1){ G.stash.push(stashPick()); logEv('versteck','Andi hat ein neues Päckchen im Versteck deponiert.'); } G.stashT=G.t+rnd(30,55); }
  /* Andi */
  if(G.andiOut>0&&G.t>=G.andiOut){ G.andiOut=0; G.andi=30; toast('Andi ist zurück auf der Wache.','info'); }
  else if(G.andiOut===0&&G.andi<100) G.andi=Math.min(100,G.andi+1.0*dt);
@@ -2650,7 +2682,7 @@ function tickGame(dtReal){
   if(inc.st==='alarm'){
    const lim=D.patience*(inc.lvl==='D'||inc.lvl==='E'?.6:1);
    if(G.t-inc.born>lim){
-    G.stats.expired++;
+    G.stats.expired++; logEv('fehler',`Einsatz #${inc.id} ${inc.code} (${inc.addr}) wurde nicht besetzt und verfallen. −${2+(LEVEL_IDX[inc.lvl]||2)} Nerven.`);
     const pen=2+(LEVEL_IDX[inc.lvl]||2);
     toast(`Einsatz ${inc.code} (${inc.addr}) nicht besetzt – andere Rettung übernimmt. <b>−${pen} Nerven</b>`,'bad');
     G.inc=G.inc.filter(i=>i.id!==inc.id);
@@ -2717,7 +2749,7 @@ function renameSlot(id,name){
 function saveGame(){ const r=saveToSlot(G&&G.slot?G.slot:null); return r.ok; }
 function loadGame(){ const arr=readSlots(); if(!arr.length) return false; const s=arr.slice().sort((a,b)=>b.ts-a.ts)[0]; return loadSlot(s.id); }
 function migrate(){
- if(G.maut===undefined) G.maut=0; if(!G.buffs) G.buffs=[]; if(!G.bid) G.bid=1;
+ if(!G.qlog) G.qlog=[]; if(G.maut===undefined) G.maut=0; if(!G.buffs) G.buffs=[]; if(!G.bid) G.bid=1;
  G.stats.od=G.stats.od||0; if(G.andiAskT===undefined) G.andiAskT=0; if(G.anger===undefined){ G.anger=0; G.stash=[]; G.stashT=G.t+25; G.stashLock=0; G.bag=[]; } G.stats.maut=G.stats.maut||0;
  VEH_DEF.forEach(d=>{ if(!G.veh.find(v=>v.id===d.id)){ const h=d.type==='nef'?NEF_HOME[d.home]:STATION; G.veh.push({id:d.id,type:d.type,crew:[],st:'idle',x:h.x,y:h.y,trip:null,inc:null,cd:0,pen:true,dolm:false,unit:0,home:d.home||null,runs:0}); } });
 }
@@ -3183,7 +3215,7 @@ function renderSys(force){
   </div>
   <div class="card">
    <h3>Nachschlagen</h3>
-   <div class="btnrow"><button class="btn" data-a="info" data-k="aviso">Aviso-Kriterien (ED-16/1)</button><button class="btn" data-a="info" data-k="pci">PCI-Dienstplan</button><button class="btn" data-a="info" data-k="frueh">Frühgeburten-Tabelle</button></div>
+   <div class="btnrow"><button class="btn" data-a="info" data-k="aviso">Aviso-Kriterien (ED-16/1)</button><button class="btn" data-a="info" data-k="pci">PCI-Dienstplan</button><button class="btn" data-a="info" data-k="frueh">Frühgeburten-Tabelle</button><button class="btn" data-a="qlog">📜 Questlog (${(G.qlog||[]).length})</button></div>
   </div>
   <div class="card">
    <h3>Dienstbilanz</h3>
@@ -3368,7 +3400,7 @@ function footHTML(inc){
   const last=c.i>=n-1;
   return `<div class="q">
    <div class="qhead"><span class="qno">Frage ${c.i+1}/${n}</span>${st.sop?`<span class="sop">${esc(st.sop)}</span>`:''}</div>
-   ${c.done?'':`<div class="qt"><i id="qTimer"></i></div>`}
+   ${c.done?'':`<div class="qtm"><i id="qTimer"></i></div>`}
    <div class="qtext">${esc(st.q)}</div>
    <div class="opts">${optsHTML(inc)}</div>
    ${c.done?`<button class="btn big go" data-a="next">${last?'Versorgung abschließen':'Weiter'} ›</button>`:''}
@@ -3513,6 +3545,7 @@ function renderModal(){
  } else if(M.type==='picker') h=pickerHTML();
  else if(M.type==='drugpick') h=drugPickHTML();
  else if(M.type==='andi') h=andiHTML();
+ else if(M.type==='qlog') h=qlogHTML();
  else if(M.type==='transport') h=transportHTML();
  else if(M.type==='result') h=resultHTML(M.rep);
  else if(M.type==='hio') h=hioHTML();
@@ -3776,6 +3809,27 @@ function endHTML(){
  </div>`;
 }
 
+
+/* ---------- Questlog ---------- */
+const QCATS=[['all','Alle'],['einsatz','Einsätze'],['fehler','Fehler'],['essen','Essen'],['drogen','Drogen'],['andi','Andi'],['versteck','Versteck'],['fahrzeug','Fahrzeuge'],['crew','Besatzung']];
+const QICO={einsatz:'🚑',fehler:'⚠️',essen:'🍔',drogen:'💉',andi:'🪑',versteck:'🗄️',fahrzeug:'🧽',crew:'👥'};
+function qlogStamp(t){ return DAYN[dayIdx(t)]+' '+hhmm(t); }
+function qlogHTML(){
+ const all=(G.qlog||[]);
+ const f=M.f||'all';
+ const idx=[]; all.forEach((e,i)=>{ if(f==='all'||e.c===f) idx.push(i); });
+ const rows=idx.slice().reverse().map(i=>{
+  const e=all[i], open=!!M.open[i], has=e.d&&e.d.length;
+  return `<div class="qrow q-${e.c}"><div class="qh" ${has?`data-a="qlogo" data-i="${i}"`:''}><span class="qtm">${qlogStamp(e.t)}</span><span class="qi">${QICO[e.c]||'•'}</span><span class="qx">${esc(e.x)}${has?`<em class="qmore">${open?'▾ Details':'▸ Details'}</em>`:''}</span></div>
+   <div class="qs">🪙 ${e.m} · Nerven ${e.n}</div>
+   ${has&&open?`<ul class="qd">${e.d.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</div>`;
+ }).join('');
+ return `<div class="mcard info qlog"><div class="mhead"><b>📜 Questlog</b><button class="x" data-a="mclose">✕</button></div>
+  <div class="qf">${QCATS.map(c=>`<button class="${f===c[0]?'on':''}" data-a="qlogf" data-k="${c[0]}">${c[1]}</button>`).join('')}</div>
+  <div class="mbody">${rows||'<p class="muted">Noch keine Einträge.</p>'}</div>
+  <div class="mfoot"><span class="muted">${idx.length} Einträge · neueste zuerst</span></div></div>`;
+}
+
 /* ===== UI MAIN: Aktionen, Start, Hauptschleife ===== */
 let MSTACK=[], QUEUE=[];
 (function(){
@@ -3812,8 +3866,8 @@ function askPause(vid){
   const v=vehById(vid); if(!v) return;
   const crew=v.type==='nef'||v.type==='asb'?vCrewText(v):v.crew.join(' & ');
   confirmModal(`🍔 ${v.id} bittet um Pause`,`<i>${esc(crew)}:</i> ${pick(PAUSE_TXT)}<br><br>Gewährst du die Pause, ist das Fahrzeug <b>45 Spielminuten</b> nicht einsatzbereit, die Besatzung ist danach aber gestärkt. Lehnst du ab, sind sie angefressen.`,
-   [{t:'Pause gewähren (45 Min)',cls:'go',fn:()=>{ v.offWhy='Essenspause'; v.offT=45; v.crew.forEach(n=>{ G.crew[n].en=Math.min(100,G.crew[n].en+25); }); toast(`${v.id} macht Essenspause: 45 Min nicht einsatzbereit.`,'info'); renderAll(); }},
-    {t:'Ablehnen',cls:'danger',fn:()=>{ v.offT=0; v.offWhy=null; v.crew.forEach(n=>{ G.crew[n].en=Math.max(0,G.crew[n].en-10); }); toast(`${v.id}: Die Besatzung murrt. Energie −10.`,'warn'); renderAll(); }}]);
+   [{t:'Pause gewähren (45 Min)',cls:'go',fn:()=>{ logEv('fahrzeug',`Essenspause für ${v.id} gewährt (45 Min, Energie +25).`); v.offWhy='Essenspause'; v.offT=45; v.crew.forEach(n=>{ G.crew[n].en=Math.min(100,G.crew[n].en+25); }); toast(`${v.id} macht Essenspause: 45 Min nicht einsatzbereit.`,'info'); renderAll(); }},
+    {t:'Ablehnen',cls:'danger',fn:()=>{ logEv('fahrzeug',`Essenspause für ${v.id} abgelehnt (Energie −10).`); v.offT=0; v.offWhy=null; v.crew.forEach(n=>{ G.crew[n].en=Math.max(0,G.crew[n].en-10); }); toast(`${v.id}: Die Besatzung murrt. Energie −10.`,'warn'); renderAll(); }}]);
  });
  setTimeout(runQueue,0);
 }
@@ -3906,6 +3960,9 @@ function onAction(a,el){
   case 'mclose': closeModal(); setTimeout(runQueue,0); renderAll(); break;
   case 'mbtn': { const b=M.btns[+d.i]; closeModal(); if(b&&b.fn) b.fn(); setTimeout(runQueue,0); break; }
   case 'info': openModal('info',{k:d.k}); break;
+  case 'qlog': openModal('qlog',{f:'all',open:{}}); break;
+  case 'qlogf': M.f=d.k; renderModal(); break;
+  case 'qlogo': { const i=+d.i; M.open[i]=!M.open[i]; renderModal(); break; }
   case 'hio': startHio(M.rep); break;
   case 'hioans': hioAnswer(+d.k); break;
   case 'winCont': closeModal(); G.endShown=false; break;
